@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 from battery import Protection, Battery, Cell
 from utils import *
 from struct import *
@@ -33,14 +32,18 @@ class Sinowealth(Battery):
     LENGTH_POS = 0
 
     def test_connection(self):
-       result = self.read_status_data()
-       result = result and self.read_remaining_capacity()
-       result = result and self.read_pack_config_data()
-       return result
+        result = False
+        try:
+            result = self.read_status_data()
+            result = result and self.read_remaining_capacity()
+            result = result and self.read_pack_config_data()
+        except:
+            pass
+        return result
 
     def get_settings(self):
         # hardcoded parameters, to be requested from the BMS in the future
-        self.max_battery_current = MAX_BATTERY_CURRENT
+        self.max_battery_charge_current = MAX_BATTERY_CHARGE_CURRENT
         self.max_battery_discharge_current = MAX_BATTERY_DISCHARGE_CURRENT
         
         if self.cell_count is None:
@@ -170,6 +173,9 @@ class Sinowealth(Battery):
             return False
         cell_cnt_mask = int(7)
         self.cell_count = (pack_config_data[1] & cell_cnt_mask) + 3
+        if self.cell_count < 1 or self.cell_count > 32:
+            logger.error(">>> ERROR: No valid cell count returnd: %u", self.cell_count)    
+            return False
         logger.info(">>> INFO: Number of cells: %u", self.cell_count)
         temp_sens_mask = int(~(1 << 6))
         self.temp_sensors = 1 if (pack_config_data[1] & temp_sens_mask) else 2 # one means two

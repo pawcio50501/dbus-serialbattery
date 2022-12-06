@@ -3,6 +3,10 @@
 DRIVER=/opt/victronenergy/dbus-serialbattery
 RUN=/opt/victronenergy/service-templates/dbus-serialbattery
 OLD=/opt/victronenergy/service/dbus-serialbattery
+
+#handle read only mounts
+sh /opt/victronenergy/swupdate-scripts/remount-rw.sh
+
 if [ -d "$DRIVER" ]; then
   if [ -L "$DRIVER" ]; then
     # Remove old SymLink.
@@ -32,5 +36,7 @@ if [ -d "$OLD" ]; then
   fi
 fi
 
-cp -f /data/etc/dbus-serialbattery/* /opt/victronenergy/dbus-serialbattery
+cp -f /data/etc/dbus-serialbattery/* /opt/victronenergy/dbus-serialbattery &>/dev/null
 cp -rf /data/etc/dbus-serialbattery/service/* /opt/victronenergy/service-templates/dbus-serialbattery
+
+sh /data/etc/dbus-serialbattery/installqml.sh

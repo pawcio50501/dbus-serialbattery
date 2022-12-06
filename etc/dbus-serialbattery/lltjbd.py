@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 from battery import Protection, Battery, Cell
 from utils import *
 from struct import *
@@ -59,11 +58,17 @@ class LltJbd(Battery):
     LENGTH_POS = 3
 
     def test_connection(self):
-        return self.read_hardware_data()
+        result = False
+        try:
+            result = self.read_hardware_data()
+        except:
+            pass
 
+        return result
+        
     def get_settings(self):
         self.read_gen_data()
-        self.max_battery_current = MAX_BATTERY_CURRENT
+        self.max_battery_charge_current = MAX_BATTERY_CHARGE_CURRENT
         self.max_battery_discharge_current = MAX_BATTERY_DISCHARGE_CURRENT
         return True
 
@@ -85,7 +90,7 @@ class LltJbd(Battery):
         self.protection.current_under = 1 if is_bit_set(tmp[3]) else 0
 
         # Software implementations for low soc
-        self.protection.soc_low = 2 if self.soc < 10 else 1 if self.soc < 20 else 0
+        self.protection.soc_low = 2 if self.soc < SOC_LOW_ALARM else 1 if self.soc < SOC_LOW_WARNING else 0
 
         # extra protection flags for LltJbd
         self.protection.set_voltage_low_cell = is_bit_set(tmp[11])
@@ -160,7 +165,7 @@ class LltJbd(Battery):
         if hardware_data is False:
             return False
 
-        self.hardware_version = unpack_from('>' + str(len(hardware_data)) + 's', hardware_data)[0]
+        self.hardware_version = unpack_from('>' + str(len(hardware_data)) + 's', hardware_data)[0].decode()
         logger.debug(self.hardware_version)
         return True
 

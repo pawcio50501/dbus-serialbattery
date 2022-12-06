@@ -1,7 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
-from __future__ import absolute_import, division, print_function, unicode_literals
 from time import sleep
 from dbus.mainloop.glib import DBusGMainLoop
 from threading import Thread
@@ -16,7 +14,7 @@ else:
 # from ve_utils import exit_on_error
 
 from dbushelper import DbusHelper
-from utils import DRIVER_VERSION, DRIVER_SUBVERSION, logger
+from utils import DRIVER_VERSION, DRIVER_SUBVERSION, logger, battery_types
 import logging
 from lltjbd import LltJbd
 from daly import Daly
@@ -25,6 +23,8 @@ from jkbms import Jkbms
 from sinowealth import Sinowealth
 from renogy import Renogy
 from revov import Revov
+from ecs import Ecs
+from lifepower import Lifepower
 #from mnb import MNB
 
 
@@ -42,28 +42,24 @@ def main():
 
     def get_battery_type(_port):
         # all the different batteries the driver support and need to test for
-        battery_types = [
-            # LltJbd(port=_port, baud=9600),
-            # Ant(port=_port, baud=19200),
-            # Daly(port=_port, baud=9600, address=b"\x40"),
-            # Daly(port=_port, baud=9600, address=b"\x80"),
-            Jkbms(port=_port, baud=115200),
-            # Sinowealth(port=_port, baud=9600),
-            # Renogy(port=_port, baud=9600),
-            # Revov (port=_port, baud=9600)
-            # MNB(port=_port, baud=9600),
-        ]
-
         # try to establish communications with the battery 3 times, else exit
         count = 3
         while count > 0:
             # create a new battery object that can read the battery and run connection test
             for test in battery_types:
-                logger.info('Testing ' + test.__class__.__name__)
-                if test.test_connection() is True:
-                    logger.info('Connection established to ' + test.__class__.__name__)
-                    return test
-
+                logger.info('Testing ' + test["bms"])
+                class_ = eval(test["bms"])
+                if "baud" in test.keys():
+                    baud = test["baud"]
+                else:
+                    baud = 9600
+                if "address" in test.keys():
+                    testbms = class_(_port, baud, test["address"])
+                else:
+                    testbms = class_(_port, baud)
+                if testbms.test_connection() is True:
+                    logger.info('Connection established to ' + testbms.__class__.__name__)
+                    return testbms
             count -= 1
             sleep(0.5)
 
@@ -102,8 +98,6 @@ def main():
     if not helper.setup_vedbus():
         logger.error("ERROR >>> Problem with battery set up at " + port)
         sys.exit(1)
-
-    # logger.info('Battery connected to dbus from ' + port)
 
     # Poll the battery at INTERVAL and run the main loop
     gobject.timeout_add(battery.poll_interval, lambda: poll_battery(mainloop))

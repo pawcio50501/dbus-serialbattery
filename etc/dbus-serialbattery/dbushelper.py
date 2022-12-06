@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 import sys
 import os
 import platform
@@ -29,12 +28,41 @@ class DbusHelper:
         # bms_id = self.battery.production if self.battery.production is not None else \
         #     self.battery.port[self.battery.port.rfind('/') + 1:]
         bms_id = self.battery.port[self.battery.port.rfind('/') + 1:]
-        path = '/Settings/Devices/serialbattery_' + str(bms_id).replace(" ", "_")
+        path = '/Settings/Devices/serialbattery'
         default_instance = 'battery:1'
-        settings = {'instance': [path + '/ClassAndVrmInstance', default_instance, 0, 0], }
+        settings = {
+            'instance': [path + '_' + str(bms_id).replace(" ", "_")+ '/ClassAndVrmInstance', default_instance, 0, 0], 
+            # 'CellVoltageMin': [path + '/CellVoltageMin', 2.8, 0.0, 5.0], 
+            # 'CellVoltageMax': [path + '/CellVoltageMax', 3.45, 0.0, 5.0], 
+            # 'CellVoltageFloat': [path + '/CellVoltageFloat', 3.35, 0.0, 5.0], 
+            # 'VoltageMaxTime': [path + '/VoltageMaxTime', 900, 0, 0], 
+            # 'VoltageResetSocLimit': [path + '/VoltageResetSocLimit', 90, 0, 100], 
+            # 'MaxChargeCurrent': [path + '/MaxCurrentCharge', 5, 0.0, 500], 
+            # 'MaxDischargeCurrent': [path + '/MaxCurrentDischarge', 7, 0.0, 500], 
+            # 'AllowDynamicChargeCurrent': [path + '/AllowDynamicChargeCurrent', 1, 0, 1], 
+            # 'AllowDynamicDischargeCurrent': [path + '/AllowDynamicDischargeCurrent', 1, 0, 1], 
+            # 'AllowDynamicChargeVoltage': [path + '/AllowDynamicChargeVoltage', 0, 0, 1], 
+            # 'SocLowWarning': [path + '/SocLowWarning', 20, 0, 100], 
+            # 'SocLowAlarm': [path + '/SocLowAlarm', 10, 0, 100], 
+            # 'Capacity': [path + '/Capacity', '', 0, 500], 
+            # 'EnableInvertedCurrent': [path + '/EnableInvertedCurrent', 0, 0, 1], 
+            
+            # 'CCMSocLimitCharge1': [path + '/CCMSocLimitCharge1', 98, 0, 100],
+            # 'CCMSocLimitCharge2': [path + '/CCMSocLimitCharge2', 95, 0, 100],
+            # 'CCMSocLimitCharge3': [path + '/CCMSocLimitCharge3', 91, 0, 100], 
+            # 'CCMSocLimitDischarge1': [path + '/CCMSocLimitDischarge1', 10, 0, 100],
+            # 'CCMSocLimitDischarge2': [path + '/CCMSocLimitDischarge2', 20, 0, 100],
+            # 'CCMSocLimitDischarge3': [path + '/CCMSocLimitDischarge3', 30, 0, 100],
+            # 'CCMCurrentLimitCharge1': [path + '/CCMCurrentLimitCharge1', 5, 0, 100],
+            # 'CCMCurrentLimitCharge2': [path + '/CCMCurrentLimitCharge2', '', 0, 100],
+            # 'CCMCurrentLimitCharge3': [path + '/CCMCurrentLimitCharge3', '', 0, 100], 
+            # 'CCMCurrentLimitDischarge1': [path + '/CCMCurrentLimitDischarge1', 5, 0, 100],
+            # 'CCMCurrentLimitDischarge2': [path + '/CCMCurrentLimitDischarge2', '', 0, 100],
+            # 'CCMCurrentLimitDischarge3': [path + '/CCMCurrentLimitDischarge3', '', 0, 100], 
+        }
 
         self.settings = SettingsDevice(get_bus(), settings, self.handle_changed_setting)
-        self.battery.role, self.battery.instance = self.get_role_instance()
+        self.battery.role, self.instance = self.get_role_instance()
 
     def get_role_instance(self):
         val = self.settings['instance'].split(':')
@@ -46,13 +74,16 @@ class DbusHelper:
             self.battery.role, self.instance = self.get_role_instance()
             logger.info("Changed DeviceInstance = %d", self.instance)
             return
+        logger.info("Changed DeviceInstance = %d", float(self.settings['CellVoltageMin']))
+        #self._dbusservice['/History/ChargeCycles']
 
     def setup_vedbus(self):
         # Set up dbus service and device instance
         # and notify of all the attributes we intend to update
         # This is only called once when a battery is initiated
         self.setup_instance()
-        logger.info("%s" % ("com.victronenergy.battery." + self.battery.port[self.battery.port.rfind('/') + 1:]))
+        short_port = self.battery.port[self.battery.port.rfind('/') + 1:]
+        logger.info("%s" % ("com.victronenergy.battery." + short_port))
 
         # Get the settings for the battery
         if not self.battery.get_settings():
@@ -66,17 +97,17 @@ class DbusHelper:
         # Create the mandatory objects
         self._dbusservice.add_path('/DeviceInstance', self.instance)
         self._dbusservice.add_path('/ProductId', 0x0)
-        self._dbusservice.add_path('/ProductName', 'SerialBattery (' + self.battery.type + ') v' +
-                                   str(DRIVER_VERSION) + DRIVER_SUBVERSION)
-        self._dbusservice.add_path('/FirmwareVersion', self.battery.version)
+        self._dbusservice.add_path('/ProductName', 'SerialBattery(' + self.battery.type + ')')
+        self._dbusservice.add_path('/FirmwareVersion', str(DRIVER_VERSION) + DRIVER_SUBVERSION)
         self._dbusservice.add_path('/HardwareVersion', self.battery.hardware_version)
         self._dbusservice.add_path('/Connected', 1)
+        self._dbusservice.add_path('/CustomName', 'SerialBattery(' + self.battery.type + ')', writeable=True)
 
         # Create static battery info
         self._dbusservice.add_path('/Info/BatteryLowVoltage', self.battery.min_battery_voltage, writeable=True)
         self._dbusservice.add_path('/Info/MaxChargeVoltage', self.battery.max_battery_voltage, writeable=True,
                                    gettextcallback=lambda p, v: "{:0.2f}V".format(v))
-        self._dbusservice.add_path('/Info/MaxChargeCurrent', self.battery.max_battery_current, writeable=True,
+        self._dbusservice.add_path('/Info/MaxChargeCurrent', self.battery.max_battery_charge_current, writeable=True,
                                    gettextcallback=lambda p, v: "{:0.2f}A".format(v))
         self._dbusservice.add_path('/Info/MaxDischargeCurrent', self.battery.max_battery_discharge_current,
                                    writeable=True, gettextcallback=lambda p, v: "{:0.2f}A".format(v))
@@ -85,7 +116,7 @@ class DbusHelper:
         self._dbusservice.add_path('/System/NrOfModulesOffline', 0, writeable=True)
         self._dbusservice.add_path('/System/NrOfModulesBlockingCharge', None, writeable=True)
         self._dbusservice.add_path('/System/NrOfModulesBlockingDischarge', None, writeable=True)
-        self._dbusservice.add_path('/Capacity', self.battery.capacity_remain, writeable=True,
+        self._dbusservice.add_path('/Capacity', self.battery.get_capacity_remain(), writeable=True,
                                    gettextcallback=lambda p, v: "{:0.2f}Ah".format(v))
         self._dbusservice.add_path('/InstalledCapacity', self.battery.capacity, writeable=True,
                                    gettextcallback=lambda p, v: "{:0.0f}Ah".format(v))
@@ -168,6 +199,9 @@ class DbusHelper:
                 # If the battery is offline for more than 10 polls (polled every second for most batteries)
                 if error_count >= 10: 
                     self.battery.online = False
+                # Has it completely failed
+                if error_count >= 60: 
+                    loop.quit()
 
             # This is to mannage CCL\DCL
             self.battery.manage_charge_current()
@@ -191,10 +225,10 @@ class DbusHelper:
         self._dbusservice['/Dc/0/Current'] = round(self.battery.current, 2)
         self._dbusservice['/Dc/0/Power'] = round(self.battery.voltage * self.battery.current, 2)
         self._dbusservice['/Dc/0/Temperature'] = self.battery.get_temp()
-        self._dbusservice['/Capacity'] = self.battery.capacity_remain
+        self._dbusservice['/Capacity'] = self.battery.get_capacity_remain()
         self._dbusservice['/ConsumedAmphours'] = 0 if self.battery.capacity is None or \
-                                self.battery.capacity_remain is None else \
-                                self.battery.capacity - self.battery.capacity_remain
+                                self.battery.get_capacity_remain() is None else \
+                                self.battery.capacity - self.battery.get_capacity_remain()
         
         midpoint, deviation = self.battery.get_midvoltage()
         if (midpoint is not None):
@@ -246,29 +280,35 @@ class DbusHelper:
 
         #cell voltages
         if (BATTERY_CELL_DATA_FORMAT>0):
-            voltageSum = 0
-            for i in range(self.battery.cell_count):
-                voltage = self.battery.get_cell_voltage(i)
-                cellpath = '/Cell/%s/Volts' if (BATTERY_CELL_DATA_FORMAT & 2) else '/Voltages/Cell%s'
-                self._dbusservice[cellpath%(str(i+1))] = voltage
-                if (BATTERY_CELL_DATA_FORMAT & 1):
-                    self._dbusservice['/Balances/Cell%s'%(str(i+1))] = self.battery.get_cell_balancing(i)
-                if voltage:
-                    voltageSum+=voltage
-            pathbase = 'Cell' if (BATTERY_CELL_DATA_FORMAT & 2) else 'Voltages'
-            self._dbusservice['/%s/Sum'%pathbase] = voltageSum
-            self._dbusservice['/%s/Diff'%pathbase] = self.battery.get_max_cell_voltage() - self.battery.get_min_cell_voltage()
+            try:
+                voltageSum = 0
+                for i in range(self.battery.cell_count):
+                    voltage = self.battery.get_cell_voltage(i)
+                    cellpath = '/Cell/%s/Volts' if (BATTERY_CELL_DATA_FORMAT & 2) else '/Voltages/Cell%s'
+                    self._dbusservice[cellpath%(str(i+1))] = voltage
+                    if (BATTERY_CELL_DATA_FORMAT & 1):
+                        self._dbusservice['/Balances/Cell%s'%(str(i+1))] = self.battery.get_cell_balancing(i)
+                    if voltage:
+                        voltageSum+=voltage
+                pathbase = 'Cell' if (BATTERY_CELL_DATA_FORMAT & 2) else 'Voltages'
+                self._dbusservice['/%s/Sum'%pathbase] = voltageSum
+                self._dbusservice['/%s/Diff'%pathbase] = self.battery.get_max_cell_voltage() - self.battery.get_min_cell_voltage()
+            except:
+                pass
 
         # Update TimeToSoC
-        if self.battery.capacity is not None and len(TIME_TO_SOC_POINTS) > 0 and self.battery.time_to_soc_update == 0:
-            self.battery.time_to_soc_update = TIME_TO_SOC_LOOP_CYCLES
-            crntPrctPerSec = (abs(self.battery.current / (self.battery.capacity / 100)) / 3600)
+        try:
+            if self.battery.capacity is not None and len(TIME_TO_SOC_POINTS) > 0 and self.battery.time_to_soc_update == 0:
+                self.battery.time_to_soc_update = TIME_TO_SOC_LOOP_CYCLES
+                crntPrctPerSec = (abs(self.battery.current / (self.battery.capacity / 100)) / 3600)
 
-            for num in TIME_TO_SOC_POINTS:
-                self._dbusservice['/TimeToSoC/' + str(num)] = self.battery.get_timetosoc(num, crntPrctPerSec) if self.battery.current else None
-            
-        else:
-            self.battery.time_to_soc_update -= 1
+                for num in TIME_TO_SOC_POINTS:
+                    self._dbusservice['/TimeToSoC/' + str(num)] = self.battery.get_timetosoc(num, crntPrctPerSec) if self.battery.current else None
+                
+            else:
+                self.battery.time_to_soc_update -= 1
+        except:
+            pass
 
         logger.debug("logged to dbus [%s]"%str(round(self.battery.soc, 2)))
         self.battery.log_cell_data()

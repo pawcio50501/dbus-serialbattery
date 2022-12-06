@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 from battery import Protection, Battery, Cell
 from utils import *
 from struct import *
@@ -24,13 +23,19 @@ class Ant(Battery):
         # call a function that will connect to the battery, send a command and retrieve the result.
         # The result or call should be unique to this BMS. Battery name or version, etc.
         # Return True if success, False for failure
-        return self.read_status_data()
+        result = False
+        try:
+            result = self.read_status_data()
+        except:
+            pass
+
+        return result
 
     def get_settings(self):
         # After successful  connection get_settings will be call to set up the battery.
         # Set the current limits, populate cell count, etc
         # Return True if success, False for failure
-        self.max_battery_current = MAX_BATTERY_CURRENT
+        self.max_battery_charge_current = MAX_BATTERY_CHARGE_CURRENT
         self.max_battery_discharge_current = MAX_BATTERY_DISCHARGE_CURRENT
         self.version = "ANT BMS V2.0"
         logger.info(self.hardware_version)

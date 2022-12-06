@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 from battery import Protection, Battery, Cell
 from utils import *
 from struct import *
@@ -22,13 +21,19 @@ class Jkbms(Battery):
         # call a function that will connect to the battery, send a command and retrieve the result.
         # The result or call should be unique to this BMS. Battery name or version, etc.
         # Return True if success, False for failure
-        return self.read_status_data()
+        result = False
+        try:
+            result = self.read_status_data()
+        except:
+            pass
+
+        return result
 
     def get_settings(self):
         # After successful  connection get_settings will be call to set up the battery.
         # Set the current limits, populate cell count, etc
         # Return True if success, False for failure
-        self.max_battery_current = MAX_BATTERY_CURRENT
+        self.max_battery_charge_current = MAX_BATTERY_CHARGE_CURRENT
         self.max_battery_discharge_current = MAX_BATTERY_DISCHARGE_CURRENT
         self.max_battery_voltage = MAX_CELL_VOLTAGE * self.cell_count
         self.min_battery_voltage = MIN_CELL_VOLTAGE * self.cell_count
@@ -108,9 +113,9 @@ class Jkbms(Battery):
         self.to_fet_bits(unpack_from('>H', self.get_data(status_data, b'\x8C', offset, 2))[0] )
 
         offset = cellbyte_count + 155
-        self.production = unpack_from('>8s', self.get_data(status_data, b'\xB4', offset, 8))[0]
+        self.production = unpack_from('>8s', self.get_data(status_data, b'\xB4', offset, 8))[0].decode()
         offset = cellbyte_count + 174
-        self.version = unpack_from('>15s', self.get_data(status_data, b'\xB7', offset, 15))[0]
+        self.version = unpack_from('>15s', self.get_data(status_data, b'\xB7', offset, 15))[0].decode()
 
         # logger.info(self.hardware_version)
         return True
